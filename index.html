@@ -23,6 +23,7 @@
             border: 0;
         }
 
+        /* TOP BAR */
         #title-bar {
             position: absolute;
             top: 0;
@@ -32,13 +33,22 @@
             background-color: #333;
             color: white;
             z-index: 100;
-            text-align: center;
-            font-size: 1.2em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-size: 1.1em;
         }
 
+        #logo {
+            height: 28px;
+            width: auto;
+        }
+
+        /* WATER BAR */
         #water-bar {
             position: absolute;
-            top: 45px;
+            top: 50px;
             left: 0;
             right: 0;
             padding: 10px;
@@ -49,9 +59,10 @@
             font-size: 1em;
         }
 
+        /* BUTTONS */
         #gmaps-btn {
             position: absolute;
-            top: 95px;
+            top: 105px;
             left: 50%;
             transform: translateX(-50%);
             z-index: 100;
@@ -68,22 +79,52 @@
             background: gray;
             cursor: not-allowed;
         }
+
+        /* SOS BUTTON */
+        #sos-btn {
+            position: absolute;
+            top: 150px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            padding: 12px 25px;
+            background: red;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        #sos-btn:hover {
+            background: darkred;
+        }
     </style>
 </head>
 
 <body>
 
+    <!-- TITLE + LOGO -->
     <div id="title-bar">
-        Live Location (Updating Every 20s):
+        <img id="logo" src="your-logo.png" alt="Logo">
+        <span>WotterWatch Live Tracker</span>
         <span id="current-coords">Awaiting Data...</span>
     </div>
 
+    <!-- WATER STATUS -->
     <div id="water-bar">
         Water Status: <span id="water-status">Loading...</span>
     </div>
 
+    <!-- BUTTONS -->
     <button id="gmaps-btn" disabled onclick="openGoogleMaps()">
         Open in Google Maps
+    </button>
+
+    <button id="sos-btn" onclick="triggerSOS()">
+        🆘 SOS EMERGENCY
     </button>
 
     <div id="map-container">
@@ -107,10 +148,27 @@
         window.latestLat = null;
         window.latestLng = null;
 
+        // OPEN GOOGLE MAPS
         function openGoogleMaps() {
             if (window.latestLat !== null && window.latestLng !== null) {
                 const url = `https://www.google.com/maps?q=${window.latestLat},${window.latestLng}`;
                 window.open(url, "_blank");
+            }
+        }
+
+        // SOS BUTTON ACTION
+        function triggerSOS() {
+            if (window.latestLat !== null && window.latestLng !== null) {
+                const url = `https://www.google.com/maps?q=${window.latestLat},${window.latestLng}`;
+                
+                alert("🚨 SOS Activated! Opening location.");
+
+                window.open(url, "_blank");
+
+                // Optional: you could also send alert to server here
+                // fetch("/sos?lat=" + window.latestLat + "&lng=" + window.latestLng);
+            } else {
+                alert("No GPS signal available yet.");
             }
         }
 
