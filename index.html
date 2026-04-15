@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Live GPS + Sensor Tracker</title>
+    <title>WotterWatch GPS Tracker</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta charset="utf-8">
 
@@ -65,7 +65,7 @@
     <script>
         // ================= THINGSPEAK SETTINGS =================
         const CHANNEL_ID = 3341325;
-        const READ_API_KEY = "YOUR_READ_API_KEY";
+        const READ_API_KEY = "A3SHG2QUYQZLZU5J";
 
         const URL = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds/last.json?api_key=${READ_API_KEY}`;
 
@@ -97,10 +97,10 @@
                     const water = data.field3;
 
                     if (water == "1") {
-                        document.getElementById("water-status").innerText = "💧 WATER DETECTED";
+                        document.getElementById("water-status").innerText = "WATER DETECTED";
                         document.getElementById("water-bar").style.background = "red";
                     } else if (water == "0") {
-                        document.getElementById("water-status").innerText = "✅ NO WATER";
+                        document.getElementById("water-status").innerText = "NO WATER";
                         document.getElementById("water-bar").style.background = "#444";
                     } else {
                         document.getElementById("water-status").innerText = "Unknown";
