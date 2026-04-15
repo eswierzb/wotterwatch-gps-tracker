@@ -1,39 +1,16 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>WotterWatch GPS Tracker</title>
+    <title>WotterWatch Live GPS Tracker </title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta charset="utf-8">
-
+    
     <style>
         html, body {
             height: 100%;
             margin: 0;
+            padding: 0;
             font-family: Arial, sans-serif;
-        }
-
-        #title-bar {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            padding: 10px;
-            background: #333;
-            color: white;
-            text-align: center;
-            z-index: 1000;
-        }
-
-        #water-bar {
-            position: absolute;
-            top: 45px;
-            left: 0;
-            right: 0;
-            padding: 10px;
-            background: #444;
-            color: white;
-            text-align: center;
-            z-index: 1000;
         }
 
         #map-container {
@@ -45,78 +22,127 @@
             height: 100%;
             border: 0;
         }
+
+        #title-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 10px;
+            background-color: #333;
+            color: white;
+            z-index: 100;
+            text-align: center;
+            font-size: 1.2em;
+        }
+
+        /* NEW: water status bar */
+        #water-bar {
+            position: absolute;
+            top: 45px;
+            left: 0;
+            right: 0;
+            padding: 10px;
+            background-color: #444;
+            color: white;
+            z-index: 100;
+            text-align: center;
+            font-size: 1em;
+        }
     </style>
 </head>
 
 <body>
 
     <div id="title-bar">
-        Live Location: <span id="coords">Loading...</span>
+        Live Location (Updating Every 20s): 
+        <span id="current-coords">Awaiting Data...</span>
     </div>
 
+    <!-- NEW WATER STATUS BAR -->
     <div id="water-bar">
         Water Status: <span id="water-status">Loading...</span>
     </div>
 
     <div id="map-container">
-        <iframe id="live-map"></iframe>
+        <iframe id="live-map" src="" allowfullscreen></iframe>
     </div>
 
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+
     <script>
-        // ================= THINGSPEAK SETTINGS =================
         const CHANNEL_ID = 3341325;
         const READ_API_KEY = "A3SHG2QUYQZLZU5J";
 
-        const URL = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds/last.json?api_key=${READ_API_KEY}`;
+        const TS_API_URL =
+            "https://api.thingspeak.com/channels/" +
+            CHANNEL_ID +
+            "/feeds/last.json?api_key=" +
+            READ_API_KEY;
 
         const UPDATE_INTERVAL = 20000;
+        let isFirstLoad = true;
 
-        function updateData() {
-            fetch(URL)
-                .then(res => res.json())
-                .then(data => {
+        function fetchAndRefreshMap() {
 
-                    // ================= GPS =================
-                    const lat = parseFloat(data.field1);
-                    const lng = parseFloat(data.field2);
+            $.getJSON(TS_API_URL, function(data) {
 
-                    if (!isNaN(lat) && !isNaN(lng)) {
-                        const pos = `${lat},${lng}`;
+                // ================= GPS =================
+                const lat = parseFloat(data.field1);
+                const lng = parseFloat(data.field2);
 
-                        document.getElementById("coords").innerText = pos;
+                if (isNaN(lat) || isNaN(lng)) {
+                    document.getElementById('current-coords').innerText =
+                        "Waiting for valid GPS data...";
+                    return;
+                }
 
-                        const mapURL =
-                            `https://maps.google.com/maps?q=${pos}&z=15&output=embed`;
+                const newPosition = lat + "," + lng;
 
-                        document.getElementById("live-map").src = mapURL;
-                    } else {
-                        document.getElementById("coords").innerText = "No GPS data";
-                    }
+                const mapURL =
+                    "https://maps.google.com/maps?q=" +
+                    newPosition +
+                    "&z=14&output=embed";
 
-                    // ================= WATER SENSOR =================
-                    const water = data.field3;
+                $("#live-map").attr("src", mapURL);
+                document.getElementById('current-coords').innerText = newPosition;
 
-                    if (water == "1") {
-                        document.getElementById("water-status").innerText = "WATER DETECTED";
-                        document.getElementById("water-bar").style.background = "red";
-                    } else if (water == "0") {
-                        document.getElementById("water-status").innerText = "NO WATER";
-                        document.getElementById("water-bar").style.background = "#444";
-                    } else {
-                        document.getElementById("water-status").innerText = "Unknown";
-                    }
+                // ================= WATER SENSOR (NEW) =================
+                const water = data.field3;
 
-                })
-                .catch(err => {
-                    console.error("ThingSpeak error:", err);
-                });
+                if (water === "1") {
+                    document.getElementById("water-status").innerText =
+                        "💧 WATER DETECTED";
+
+                    document.getElementById("water-bar").style.backgroundColor = "red";
+                }
+                else if (water === "0") {
+                    document.getElementById("water-status").innerText =
+                        "✅ NO WATER";
+
+                    document.getElementById("water-bar").style.backgroundColor = "#444";
+                }
+                else {
+                    document.getElementById("water-status").innerText =
+                        "Unknown";
+                }
+
+                if (isFirstLoad) {
+                    console.log("Map loaded for the first time.");
+                    isFirstLoad = false;
+                }
+
+            }).fail(function() {
+                console.error("Failed to fetch data from ThingSpeak API.");
+                document.getElementById('current-coords').innerText =
+                    "ERROR: ThingSpeak connection failed.";
+            });
         }
 
-        // Initial load
-        updateData();
-
-        // Auto refresh
-        setInterval(updateData, UPDATE_INTERVAL);
+        $(document).ready(function() {
+            fetchAndRefreshMap();
+            window.setInterval(fetchAndRefreshMap, UPDATE_INTERVAL);
+        });
     </script>
 
 </body>
