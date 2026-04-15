@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>WotterWatch Live GPS Tracker </title>
+    <title>WotterWatch Live GPS Tracker</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta charset="utf-8">
-    
+
     <style>
         html, body {
             height: 100%;
@@ -36,7 +36,6 @@
             font-size: 1.2em;
         }
 
-        /* NEW: water status bar */
         #water-bar {
             position: absolute;
             top: 45px;
@@ -49,20 +48,43 @@
             text-align: center;
             font-size: 1em;
         }
+
+        #gmaps-btn {
+            position: absolute;
+            top: 95px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            padding: 10px 15px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        #gmaps-btn:disabled {
+            background: gray;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 
 <body>
 
     <div id="title-bar">
-        Live Location (Updating Every 20s): 
+        Live Location (Updating Every 20s):
         <span id="current-coords">Awaiting Data...</span>
     </div>
 
-    <!-- NEW WATER STATUS BAR -->
     <div id="water-bar">
         Water Status: <span id="water-status">Loading...</span>
     </div>
+
+    <button id="gmaps-btn" disabled onclick="openGoogleMaps()">
+        Open in Google Maps
+    </button>
 
     <div id="map-container">
         <iframe id="live-map" src="" allowfullscreen></iframe>
@@ -81,7 +103,16 @@
             READ_API_KEY;
 
         const UPDATE_INTERVAL = 20000;
-        let isFirstLoad = true;
+
+        window.latestLat = null;
+        window.latestLng = null;
+
+        function openGoogleMaps() {
+            if (window.latestLat !== null && window.latestLng !== null) {
+                const url = `https://www.google.com/maps?q=${window.latestLat},${window.latestLng}`;
+                window.open(url, "_blank");
+            }
+        }
 
         function fetchAndRefreshMap() {
 
@@ -91,35 +122,39 @@
                 const lat = parseFloat(data.field1);
                 const lng = parseFloat(data.field2);
 
-                if (isNaN(lat) || isNaN(lng)) {
-                    document.getElementById('current-coords').innerText =
+                if (!isNaN(lat) && !isNaN(lng)) {
+
+                    window.latestLat = lat;
+                    window.latestLng = lng;
+
+                    document.getElementById("gmaps-btn").disabled = false;
+
+                    const pos = `${lat},${lng}`;
+
+                    const mapURL =
+                        "https://maps.google.com/maps?q=" +
+                        pos +
+                        "&z=14&output=embed";
+
+                    $("#live-map").attr("src", mapURL);
+                    document.getElementById("current-coords").innerText = pos;
+
+                } else {
+                    document.getElementById("current-coords").innerText =
                         "Waiting for valid GPS data...";
-                    return;
                 }
 
-                const newPosition = lat + "," + lng;
-
-                const mapURL =
-                    "https://maps.google.com/maps?q=" +
-                    newPosition +
-                    "&z=14&output=embed";
-
-                $("#live-map").attr("src", mapURL);
-                document.getElementById('current-coords').innerText = newPosition;
-
-                // ================= WATER SENSOR (NEW) =================
+                // ================= WATER SENSOR =================
                 const water = data.field3;
 
                 if (water === "1") {
                     document.getElementById("water-status").innerText =
-                        "WATER DETECTED";
-
+                        "💧 WATER DETECTED";
                     document.getElementById("water-bar").style.backgroundColor = "red";
                 }
                 else if (water === "0") {
                     document.getElementById("water-status").innerText =
-                        "NO WATER";
-
+                        "✅ NO WATER";
                     document.getElementById("water-bar").style.backgroundColor = "#444";
                 }
                 else {
@@ -127,21 +162,16 @@
                         "Unknown";
                 }
 
-                if (isFirstLoad) {
-                    console.log("Map loaded for the first time.");
-                    isFirstLoad = false;
-                }
-
             }).fail(function() {
-                console.error("Failed to fetch data from ThingSpeak API.");
-                document.getElementById('current-coords').innerText =
-                    "ERROR: ThingSpeak connection failed.";
+                console.error("ThingSpeak connection failed.");
+                document.getElementById("current-coords").innerText =
+                    "ERROR connecting to ThingSpeak";
             });
         }
 
         $(document).ready(function() {
             fetchAndRefreshMap();
-            window.setInterval(fetchAndRefreshMap, UPDATE_INTERVAL);
+            setInterval(fetchAndRefreshMap, UPDATE_INTERVAL);
         });
     </script>
 
