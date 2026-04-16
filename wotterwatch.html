@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>WotterWatch Live GPS Tracker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy: #0d2340;
+    --navy-mid: #163356;
+    --blue: #1a6fbd;
+    --blue-light: #d6eaf8;
+    --teal: #1d9e75;
+    --teal-light: #e1f5ee;
+    --red: #c0392b;
+    --red-light: #fdecea;
+    --white: #ffffff;
+    --off-white: #f5f7fa;
+    --gray-100: #eaecf0;
+    --gray-300: #c2c8d0;
+    --gray-500: #7a8494;
+    --gray-700: #3d4555;
+    --text: #0d2340;
+    --font: 'DM Sans', sans-serif;
+    --mono: 'DM Mono', monospace;
+    --radius: 10px;
+    --bar-height: 64px;
+  }
+
+  html, body {
+    height: 100%;
+    font-family: var(--font);
+    background: var(--navy);
+    color: var(--text);
+  }
+
+  /* ── NAV BAR ── */
+  #navbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: var(--bar-height);
+    background: var(--navy);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    z-index: 200;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+
+  #navbar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  #logo {
+    height: 44px;
+    width: 44px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid rgba(255,255,255,0.15);
+  }
+
+  #brand {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--white);
+    letter-spacing: -0.3px;
+  }
+
+  #brand span {
+    color: #5bb8f5;
+  }
+
+  /* live pulse dot */
+  #live-dot {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.55);
+    font-family: var(--mono);
+  }
+
+  #live-dot::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #2ecc71;
+    animation: pulse 2s infinite;
+    display: block;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.85); }
+  }
+
+  /* ── STATUS BAR ── */
+  #status-bar {
+    position: fixed;
+    top: var(--bar-height);
+    left: 0; right: 0;
+    background: var(--navy-mid);
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    display: flex;
+    align-items: stretch;
+    z-index: 150;
+    height: 52px;
+  }
+
+  .status-cell {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 13px;
+    color: rgba(255,255,255,0.6);
+    border-right: 1px solid rgba(255,255,255,0.07);
+    padding: 0 14px;
+  }
+
+  .status-cell:last-child { border-right: none; }
+
+  .status-cell .label {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: rgba(255,255,255,0.35);
+  }
+
+  .status-cell .value {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--white);
+    font-weight: 500;
+  }
+
+  /* water status pill */
+  #water-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    background: rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.6);
+    transition: all 0.4s ease;
+  }
+
+  #water-pill.wet {
+    background: rgba(231,76,60,0.25);
+    color: #ff8a80;
+  }
+
+  #water-pill.dry {
+    background: rgba(29,158,117,0.2);
+    color: #4dd0a4;
+  }
+
+  /* ── MAP ── */
+  #map-wrapper {
+    position: fixed;
+    top: calc(var(--bar-height) + 52px);
+    bottom: 80px;
+    left: 0; right: 0;
+    z-index: 1;
+  }
+
+  #live-map {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+  }
+
+  /* ── PIN ICON overlay (decorative, top-left of map) ── */
+  #map-pin-badge {
+    position: fixed;
+    top: calc(var(--bar-height) + 52px + 14px);
+    left: 14px;
+    z-index: 50;
+    background: var(--navy);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: var(--radius);
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #map-pin-badge svg {
+    width: 16px;
+    height: 16px;
+    fill: #5bb8f5;
+    flex-shrink: 0;
+  }
+
+  #map-pin-badge .coords-text {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: rgba(255,255,255,0.7);
+  }
+
+  /* ── BOTTOM ACTION BAR ── */
+  #action-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 80px;
+    background: var(--navy);
+    border-top: 1px solid rgba(255,255,255,0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 0 20px;
+    z-index: 200;
+  }
+
+  #gmaps-btn {
+    flex: 1;
+    max-width: 220px;
+    height: 44px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: var(--radius);
+    color: var(--white);
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    transition: background 0.2s, border-color 0.2s;
+  }
+
+  #gmaps-btn:hover:not(:disabled) {
+    background: rgba(255,255,255,0.13);
+    border-color: rgba(255,255,255,0.25);
+  }
+
+  #gmaps-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  #gmaps-btn svg { width: 15px; height: 15px; fill: #5bb8f5; }
+
+  #sos-btn {
+    flex: 1;
+    max-width: 180px;
+    height: 44px;
+    background: #c0392b;
+    border: none;
+    border-radius: var(--radius);
+    color: var(--white);
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    transition: background 0.2s, transform 0.1s;
+  }
+
+  #sos-btn:hover { background: #a93226; }
+  #sos-btn:active { transform: scale(0.97); }
+  #sos-btn svg { width: 16px; height: 16px; fill: white; }
+</style>
+</head>
+<body>
+
+<!-- NAV BAR -->
+<nav id="navbar">
+  <div id="navbar-left">
+    <img id="logo" src="wotterwatch.png" alt="WotterWatch Logo">
+    <span id="brand">Wotter<span>Watch</span></span>
+  </div>
+  <div id="live-dot">LIVE</div>
+</nav>
+
+<!-- STATUS BAR -->
+<div id="status-bar">
+  <div class="status-cell">
+    <span class="label">Coords</span>
+    <span class="value" id="current-coords">—</span>
+  </div>
+  <div class="status-cell">
+    <span class="label">Water</span>
+    <span id="water-pill">Loading…</span>
+  </div>
+</div>
+
+<!-- MAP PIN BADGE -->
+<div id="map-pin-badge">
+  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"/>
+  </svg>
+  <span class="coords-text" id="pin-coords">Awaiting GPS…</span>
+</div>
+
+<!-- MAP -->
+<div id="map-wrapper">
+  <iframe id="live-map" src="" allowfullscreen></iframe>
+</div>
+
+<!-- BOTTOM ACTIONS -->
+<div id="action-bar">
+  <button id="gmaps-btn" disabled onclick="openGoogleMaps()">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
+    Open in Google Maps
+  </button>
+  <button id="sos-btn" onclick="triggerSOS()">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+    SOS Emergency
+  </button>
+</div>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script>
+  const CHANNEL_ID = 3341325;
+  const READ_API_KEY = "A3SHG2QUYQZLZU5J";
+  const TS_API_URL = "https://api.thingspeak.com/channels/" + CHANNEL_ID + "/feeds/last.json?api_key=" + READ_API_KEY;
+  const UPDATE_INTERVAL = 10000;
+
+  window.latestLat = null;
+  window.latestLng = null;
+
+  function openGoogleMaps() {
+    if (window.latestLat !== null && window.latestLng !== null) {
+      window.open("https://www.google.com/maps?q=" + window.latestLat + "," + window.latestLng, "_blank");
+    }
+  }
+
+  function triggerSOS() {
+    if (window.latestLat !== null && window.latestLng !== null) {
+      alert("SOS Activated! Opening location.");
+      window.open("https://www.google.com/maps?q=" + window.latestLat + "," + window.latestLng, "_blank");
+    } else {
+      alert("No GPS signal available yet.");
+    }
+  }
+
+  function fetchAndRefreshMap() {
+    $.getJSON(TS_API_URL, function(data) {
+      const lat = parseFloat(data.field1);
+      const lng = parseFloat(data.field2);
+
+      if (!isNaN(lat) && !isNaN(lng)) {
+        window.latestLat = lat;
+        window.latestLng = lng;
+        document.getElementById("gmaps-btn").disabled = false;
+        const pos = lat.toFixed(5) + ", " + lng.toFixed(5);
+        document.getElementById("current-coords").innerText = pos;
+        document.getElementById("pin-coords").innerText = pos;
+        $("#live-map").attr("src", "https://maps.google.com/maps?q=" + lat + "," + lng + "&z=14&output=embed");
+      } else {
+        document.getElementById("current-coords").innerText = "No signal";
+        document.getElementById("pin-coords").innerText = "Awaiting GPS…";
+      }
+
+      const water = data.field3;
+      const pill = document.getElementById("water-pill");
+      if (water === "1") {
+        pill.innerText = "Water Detected";
+        pill.className = "wet";
+      } else if (water === "0") {
+        pill.innerText = "No Water";
+        pill.className = "dry";
+      } else {
+        pill.innerText = "Unknown";
+        pill.className = "";
+      }
+    }).fail(function() {
+      document.getElementById("current-coords").innerText = "Connection error";
+      document.getElementById("pin-coords").innerText = "Connection error";
+    });
+  }
+
+  $(document).ready(function() {
+    fetchAndRefreshMap();
+    setInterval(fetchAndRefreshMap, UPDATE_INTERVAL);
+  });
+</script>
+</body>
+</html>

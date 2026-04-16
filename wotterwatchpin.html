@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>WotterWatch Live GPS Tracker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy: #0d2340;
+    --navy-mid: #163356;
+    --white: #ffffff;
+    --font: 'DM Sans', sans-serif;
+    --mono: 'DM Mono', monospace;
+    --radius: 10px;
+    --bar-height: 64px;
+    --status-height: 52px;
+    --action-height: 80px;
+  }
+
+  html, body {
+    height: 100%;
+    font-family: var(--font);
+    background: var(--navy);
+    overflow: hidden;
+  }
+
+  /* NAV BAR */
+  #navbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: var(--bar-height);
+    background: var(--navy);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    z-index: 200;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+
+  #navbar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  #logo {
+    height: 44px; width: 44px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid rgba(255,255,255,0.15);
+  }
+
+  #brand {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--white);
+    letter-spacing: -0.3px;
+  }
+
+  #brand span { color: #5bb8f5; }
+
+  #live-dot {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.55);
+    font-family: var(--mono);
+  }
+
+  #live-dot::before {
+    content: '';
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #2ecc71;
+    animation: pulse 2s infinite;
+    display: block;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.85); }
+  }
+
+  /* STATUS BAR */
+  #status-bar {
+    position: fixed;
+    top: var(--bar-height);
+    left: 0; right: 0;
+    background: var(--navy-mid);
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    display: flex;
+    align-items: stretch;
+    z-index: 150;
+    height: var(--status-height);
+  }
+
+  .status-cell {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-right: 1px solid rgba(255,255,255,0.07);
+    padding: 0 14px;
+  }
+
+  .status-cell:last-child { border-right: none; }
+
+  .status-cell .label {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: rgba(255,255,255,0.35);
+  }
+
+  .status-cell .value {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--white);
+    font-weight: 500;
+  }
+
+  #water-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    background: rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.6);
+    transition: all 0.4s ease;
+  }
+
+  #water-pill.wet { background: rgba(231,76,60,0.25); color: #ff8a80; }
+  #water-pill.dry { background: rgba(29,158,117,0.2); color: #4dd0a4; }
+
+  /* MAP */
+  #map {
+    position: fixed;
+    top: calc(var(--bar-height) + var(--status-height));
+    bottom: var(--action-height);
+    left: 0; right: 0;
+    z-index: 1;
+  }
+
+  /* BOTTOM ACTION BAR */
+  #action-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: var(--action-height);
+    background: var(--navy);
+    border-top: 1px solid rgba(255,255,255,0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 0 20px;
+    z-index: 200;
+  }
+
+  #gmaps-btn {
+    flex: 1;
+    max-width: 220px;
+    height: 44px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: var(--radius);
+    color: var(--white);
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    transition: background 0.2s, border-color 0.2s;
+  }
+
+  #gmaps-btn:hover:not(:disabled) {
+    background: rgba(255,255,255,0.13);
+    border-color: rgba(255,255,255,0.25);
+  }
+
+  #gmaps-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  #gmaps-btn svg { width: 15px; height: 15px; fill: #5bb8f5; }
+
+  #sos-btn {
+    flex: 1;
+    max-width: 180px;
+    height: 44px;
+    background: #c0392b;
+    border: none;
+    border-radius: var(--radius);
+    color: var(--white);
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    transition: background 0.2s, transform 0.1s;
+  }
+
+  #sos-btn:hover { background: #a93226; }
+  #sos-btn:active { transform: scale(0.97); }
+  #sos-btn svg { width: 16px; height: 16px; fill: white; }
+
+  /* CUSTOM MARKER */
+  .wotter-marker {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    border: 3px solid #5bb8f5;
+    box-shadow: 0 0 0 4px rgba(91,184,245,0.25), 0 4px 12px rgba(0,0,0,0.4);
+    overflow: hidden;
+    background: var(--navy);
+    animation: markerPop 0.3s ease-out;
+  }
+
+  .wotter-marker img { width: 100%; height: 100%; object-fit: cover; }
+
+  @keyframes markerPop {
+    0% { transform: scale(0.5); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+</style>
+</head>
+<body>
+
+<nav id="navbar">
+  <div id="navbar-left">
+    <img id="logo" src="wotterwatch.png" alt="WotterWatch Logo">
+    <span id="brand">Wotter<span>Watch</span></span>
+  </div>
+  <div id="live-dot">LIVE</div>
+</nav>
+
+<div id="status-bar">
+  <div class="status-cell">
+    <span class="label">Coords</span>
+    <span class="value" id="current-coords">—</span>
+  </div>
+  <div class="status-cell">
+    <span class="label">Water</span>
+    <span id="water-pill">Loading…</span>
+  </div>
+</div>
+
+<div id="map"></div>
+
+<div id="action-bar">
+  <button id="gmaps-btn" disabled onclick="openGoogleMaps()">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
+    Open in Google Maps
+  </button>
+  <button id="sos-btn" onclick="triggerSOS()">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+    SOS Emergency
+  </button>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script>
+  const CHANNEL_ID = 3341325;
+  const READ_API_KEY = "A3SHG2QUYQZLZU5J";
+  const TS_API_URL = "https://api.thingspeak.com/channels/" + CHANNEL_ID + "/feeds/last.json?api_key=" + READ_API_KEY;
+  const UPDATE_INTERVAL = 10000;
+
+  window.latestLat = null;
+  window.latestLng = null;
+
+  const map = L.map('map', { zoomControl: true }).setView([20, 0], 2);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 19
+  }).addTo(map);
+
+  const wotterIcon = L.divIcon({
+    className: '',
+    html: '<div class="wotter-marker"><img src="wotterwatch.png" alt="WotterWatch"/></div>',
+    iconSize: [48, 48],
+    iconAnchor: [24, 24],
+    popupAnchor: [0, -28]
+  });
+
+  let marker = null;
+
+  function openGoogleMaps() {
+    if (window.latestLat !== null && window.latestLng !== null) {
+      window.open("https://www.google.com/maps?q=" + window.latestLat + "," + window.latestLng, "_blank");
+    }
+  }
+
+  function triggerSOS() {
+    if (window.latestLat !== null && window.latestLng !== null) {
+      alert("SOS Activated! Opening location.");
+      window.open("https://www.google.com/maps?q=" + window.latestLat + "," + window.latestLng, "_blank");
+    } else {
+      alert("No GPS signal available yet.");
+    }
+  }
+
+  function fetchAndRefreshMap() {
+    $.getJSON(TS_API_URL, function(data) {
+      const lat = parseFloat(data.field1);
+      const lng = parseFloat(data.field2);
+
+      if (!isNaN(lat) && !isNaN(lng)) {
+        window.latestLat = lat;
+        window.latestLng = lng;
+        document.getElementById("gmaps-btn").disabled = false;
+        const pos = lat.toFixed(5) + ", " + lng.toFixed(5);
+        document.getElementById("current-coords").innerText = pos;
+
+        if (marker) {
+          marker.setLatLng([lat, lng]);
+        } else {
+          marker = L.marker([lat, lng], { icon: wotterIcon })
+            .addTo(map)
+            .bindPopup("<b>WotterWatch</b><br>" + pos);
+          map.setView([lat, lng], 14);
+        }
+      } else {
+        document.getElementById("current-coords").innerText = "No signal";
+      }
+
+      const water = data.field3;
+      const pill = document.getElementById("water-pill");
+      if (water === "1") {
+        pill.innerText = "Water Detected";
+        pill.className = "wet";
+      } else if (water === "0") {
+        pill.innerText = "No Water";
+        pill.className = "dry";
+      } else {
+        pill.innerText = "Unknown";
+        pill.className = "";
+      }
+    }).fail(function() {
+      document.getElementById("current-coords").innerText = "Connection error";
+    });
+  }
+
+  $(document).ready(function() {
+    fetchAndRefreshMap();
+    setInterval(fetchAndRefreshMap, UPDATE_INTERVAL);
+  });
+</script>
+</body>
+</html>
